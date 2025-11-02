@@ -63,7 +63,6 @@ export default async function Page() {
   return (
     <main style={{ maxWidth: 720, margin: "2rem auto", padding: "0 1rem" }}>
       <h1>Entries</h1>
-      <p>Data from Strapi. Updates via ISR and on-demand revalidation.</p>
       <ul style={{ listStyle: "none", padding: 0 }}>
         {entries.map((e) => (
           <li
