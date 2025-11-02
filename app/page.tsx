@@ -1,15 +1,39 @@
 export const revalidate = 60; // ISR interval fallback
 
-type StrapiEntry = {
+type NormalizedEntry = {
   id: number;
-  attributes: {
-    title: string;
-    description: string | null;
-    timestamp: string;
-  };
+  title: string;
+  description: string | null;
+  timestamp: string;
 };
 
-async function getEntries(): Promise<StrapiEntry[]> {
+function normalizeEntries(data: any[]): NormalizedEntry[] {
+  if (!Array.isArray(data)) return [];
+  return data
+    .map((item) => {
+      // Support Strapi v4 shape: { id, attributes: { title, description, timestamp } }
+      if (item && typeof item === "object" && item.attributes) {
+        return {
+          id: item.id,
+          title: item.attributes.title,
+          description: item.attributes.description ?? null,
+          timestamp: item.attributes.timestamp,
+        } as NormalizedEntry;
+      }
+      // Support Strapi v5 flattened shape: { id, title, description, timestamp }
+      return {
+        id: item.id,
+        title: item.title,
+        description: item.description ?? null,
+        timestamp: item.timestamp,
+      } as NormalizedEntry;
+    })
+    .filter(
+      (e) => e && typeof e.id === "number" && typeof e.title === "string"
+    );
+}
+
+async function getEntries(): Promise<NormalizedEntry[]> {
   const base = process.env.NEXT_PUBLIC_STRAPI_URL;
   if (!base) {
     return [];
@@ -23,7 +47,8 @@ async function getEntries(): Promise<StrapiEntry[]> {
       return [];
     }
     const json = await res.json();
-    return json?.data ?? [];
+    const data = json?.data ?? [];
+    return normalizeEntries(data);
   } catch (error_) {
     console.error(
       "Failed to fetch Strapi entries during build/runtime",
@@ -45,12 +70,12 @@ export default async function Page() {
             key={e.id}
             style={{ padding: "1rem 0", borderBottom: "1px solid #eee" }}
           >
-            <h3 style={{ margin: 0 }}>{e.attributes.title}</h3>
-            {e.attributes.description && (
-              <p style={{ margin: "0.25rem 0" }}>{e.attributes.description}</p>
+            <h3 style={{ margin: 0 }}>{e.title}</h3>
+            {e.description && (
+              <p style={{ margin: "0.25rem 0" }}>{e.description}</p>
             )}
             <small style={{ color: "#666" }}>
-              {new Date(e.attributes.timestamp).toLocaleString()}
+              {new Date(e.timestamp).toLocaleString()}
             </small>
           </li>
         ))}
